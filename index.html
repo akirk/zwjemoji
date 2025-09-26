@@ -662,8 +662,10 @@
 
 		function updateURL() {
 			if (selectedEmojis.length > 0) {
-				const encodedEmojis = encodeURIComponent(selectedEmojis.join(''));
-				const newURL = `${window.location.pathname}?emojis=${encodedEmojis}`;
+				// Convert emojis to a cleaner base64 encoding
+				const emojiString = selectedEmojis.join('');
+				const encodedEmojis = btoa(unescape(encodeURIComponent(emojiString)));
+				const newURL = `${window.location.pathname}?e=${encodedEmojis}`;
 				window.history.replaceState({}, '', newURL);
 			} else {
 				window.history.replaceState({}, '', window.location.pathname);
@@ -864,8 +866,25 @@
 
 		function loadEmojisFromURL() {
 			const urlParams = new URLSearchParams(window.location.search);
-			const emojisParam = urlParams.get('emojis');
 
+			// Try new base64 format first
+			let emojisParam = urlParams.get('e');
+			if (emojisParam) {
+				try {
+					const decodedEmojis = decodeURIComponent(escape(atob(emojisParam)));
+					const emojiArray = [...decodedEmojis];
+					selectedEmojis.push(...emojiArray);
+					updateSelectedDisplay();
+					autoCompile();
+					updateSuggestions();
+					return;
+				} catch (error) {
+					console.error('Error loading emojis from base64 URL:', error);
+				}
+			}
+
+			// Fallback to old format for backward compatibility
+			emojisParam = urlParams.get('emojis');
 			if (emojisParam) {
 				try {
 					const decodedEmojis = decodeURIComponent(emojisParam);
@@ -875,7 +894,7 @@
 					autoCompile();
 					updateSuggestions();
 				} catch (error) {
-					console.error('Error loading emojis from URL:', error);
+					console.error('Error loading emojis from legacy URL:', error);
 				}
 			}
 		}
