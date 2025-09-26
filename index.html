@@ -629,9 +629,20 @@
 			updateSuggestions();
 		}
 
+		function updateURL() {
+			if (selectedEmojis.length > 0) {
+				const encodedEmojis = encodeURIComponent(selectedEmojis.join(''));
+				const newURL = `${window.location.pathname}?emojis=${encodedEmojis}`;
+				window.history.replaceState({}, '', newURL);
+			} else {
+				window.history.replaceState({}, '', window.location.pathname);
+			}
+		}
+
 		function autoCompile() {
 			if (selectedEmojis.length === 0) {
 				clearResults();
+				updateURL();
 				return;
 			}
 
@@ -682,6 +693,8 @@
 				<strong>Length:</strong> ${compiledResult.length} chars (${[...compiledResult].length} graphemes)<br>
 				<strong>Code Points:</strong> ${allCodePoints.join(' ')}
 			`;
+
+			updateURL();
 		}
 
 		function clearResults() {
@@ -818,7 +831,28 @@
 			input.value = '';
 		}
 
-		document.addEventListener('DOMContentLoaded', initializeEmojiSelector);
+		function loadEmojisFromURL() {
+			const urlParams = new URLSearchParams(window.location.search);
+			const emojisParam = urlParams.get('emojis');
+
+			if (emojisParam) {
+				try {
+					const decodedEmojis = decodeURIComponent(emojisParam);
+					const emojiArray = [...decodedEmojis];
+					selectedEmojis.push(...emojiArray);
+					updateSelectedDisplay();
+					autoCompile();
+					updateSuggestions();
+				} catch (error) {
+					console.error('Error loading emojis from URL:', error);
+				}
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', () => {
+			initializeEmojiSelector();
+			loadEmojisFromURL();
+		});
 	</script>
 </body>
 </html>
