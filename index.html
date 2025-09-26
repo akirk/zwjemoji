@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>ZWJ Emoji Compiler</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			margin-top: 50px;
+			background-color: #f8f9fa;
+			color: #343a40;
+		}
+		h1 {
+			margin-bottom: 20px;
+		}
+		.emoji-container {
+			display: inline-block;
+			font-size: 100px;
+			margin: 20px;
+			padding: 20px;
+			border: 2px dashed #dee2e6;
+			border-radius: 10px;
+			min-height: 120px;
+			min-width: 200px;
+			text-align: center;
+			background-color: white;
+			vertical-align: top;
+		}
+		.overlapped-container {
+			position: relative;
+			display: inline-block;
+			font-size: 100px;
+			margin: 20px;
+			padding: 20px;
+			border: 2px dashed #dee2e6;
+			border-radius: 10px;
+			min-height: 120px;
+			min-width: 200px;
+			text-align: center;
+			background-color: white;
+			vertical-align: top;
+		}
+		.overlapped-emoji {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}
+		.render-modes {
+			display: flex;
+			justify-content: center;
+			gap: 20px;
+			flex-wrap: wrap;
+			align-items: flex-start;
+		}
+		.result-layout {
+			display: flex;
+			gap: 20px;
+			justify-content: center;
+			align-items: flex-start;
+			flex-wrap: wrap;
+		}
+		.emoji-results {
+			display: flex;
+			gap: 20px;
+			flex-wrap: wrap;
+		}
+		.render-section {
+			text-align: center;
+		}
+		.render-section h3 {
+			margin-bottom: 10px;
+			color: #495057;
+		}
+		.emoji-selector {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+		.emoji-btn {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			font-size: 24px;
+			padding: 8px 6px;
+			border: 2px solid #e9ecef;
+			border-radius: 8px;
+			background-color: white;
+			cursor: pointer;
+			transition: all 0.2s;
+			min-height: 60px;
+			width: 70px;
+			box-sizing: border-box;
+			flex-shrink: 0;
+		}
+		.emoji-btn .emoji-char {
+			font-size: 24px;
+		}
+		.emoji-btn .emoji-name {
+			font-size: 8px;
+			color: #666;
+			margin-top: 2px;
+			text-align: center;
+			line-height: 1;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			width: 100%;
+		}
+		.emoji-btn:hover {
+			border-color: #007bff;
+			background-color: #f8f9fa;
+		}
+		.emoji-btn.suggested {
+			border-color: #28a745;
+			background-color: #d4edda;
+			box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+		}
+		.emoji-btn.suggested:hover {
+			border-color: #20c997;
+			background-color: #c3e6cb;
+		}
+		.selected-emojis {
+			margin: 20px 0;
+			padding: 15px;
+			background-color: white;
+			border-radius: 8px;
+			border: 1px solid #dee2e6;
+		}
+		.selected-emoji {
+			display: inline-flex;
+			flex-direction: column;
+			align-items: center;
+			font-size: 24px;
+			margin: 5px;
+			padding: 8px;
+			background-color: #f8f9fa;
+			border: 1px solid #dee2e6;
+			border-radius: 5px;
+			cursor: grab;
+			user-select: none;
+			transition: all 0.2s;
+		}
+		.selected-emoji-char {
+			font-size: 24px;
+		}
+		.selected-emoji-name {
+			font-size: 10px;
+			color: #666;
+			margin-top: 2px;
+			text-align: center;
+			line-height: 1;
+		}
+		.selected-emoji:hover {
+			background-color: #e3f2fd;
+			border-color: #2196f3;
+			transform: translateY(-2px);
+		}
+		.selected-emoji.dragging {
+			opacity: 0.5;
+			cursor: grabbing;
+			transform: rotate(5deg);
+		}
+		.selected-emoji.drag-over-left {
+			border-left: 4px solid #007bff;
+			background-color: #e3f2fd;
+		}
+		.selected-emoji.drag-over-right {
+			border-right: 4px solid #007bff;
+			background-color: #e3f2fd;
+		}
+		.drop-indicator {
+			width: 3px;
+			height: 40px;
+			background-color: #007bff;
+			border-radius: 2px;
+			margin: 0 2px;
+			display: none;
+			animation: pulse 1s infinite;
+		}
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.5; }
+		}
+		#customInput {
+			font-size: 18px;
+			padding: 10px;
+			width: 300px;
+			text-align: center;
+			border: 1px solid #ced4da;
+			border-radius: 5px;
+			outline: none;
+			margin: 10px;
+		}
+		button {
+			padding: 10px 15px;
+			font-size: 16px;
+			border: none;
+			border-radius: 5px;
+			background-color: #007bff;
+			color: white;
+			cursor: pointer;
+		}
+		button:hover {
+			background-color: #0056b3;
+		}
+		.controls {
+			margin: 20px 0;
+		}
+		#resultInfo {
+			padding: 15px;
+			background-color: #e9ecef;
+			border-radius: 8px;
+			font-family: monospace;
+			font-size: 14px;
+			max-width: 300px;
+			min-width: 250px;
+			margin-top: 5em;
+			position: absolute;
+			right: 5em;
+		}
+		.selectors-container {
+			display: flex;
+			gap: 20px;
+			margin: 20px 0;
+			align-items: flex-start;
+		}
+		.selector-section {
+			flex: 1;
+			min-width: 0;
+		}
+		.selector-section h3 {
+			margin-bottom: 15px;
+			color: #495057;
+			text-align: center;
+		}
+		.selector-content {
+			padding: 15px;
+			background-color: white;
+			border: 1px solid #dee2e6;
+			border-radius: 8px;
+			max-height: 400px;
+			overflow-y: auto;
+		}
+		.example-grid {
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			gap: 8px;
+		}
+		.example-item {
+			padding: 8px;
+			border: 2px solid #e9ecef;
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.2s;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.example-item:hover {
+			border-color: #007bff;
+			background-color: #f8f9fa;
+		}
+		.example-emoji {
+			font-size: 28px;
+		}
+	</style>
+</head>
+<body>
+	<h1>ZWJ Emoji Compiler</h1>
+
+	<div class="result-layout">
+		<div class="emoji-results">
+			<div class="render-section">
+				<h3>ZWJ Compiled</h3>
+				<div class="emoji-container" id="emojiResult"></div>
+			</div>
+			<div class="render-section">
+				<h3>Overlapped View</h3>
+				<div class="overlapped-container" id="overlappedResult"></div>
+			</div>
+		</div>
+		<div class="result-info" id="resultInfo">
+			<strong>No emojis selected</strong><br>
+			Click emojis to start building your ZWJ sequence
+		</div>
+	</div>
+
+	<div class="controls">
+		<button onclick="clearSelection()">Clear All</button>
+		<button onclick="copyToClipboard()">Copy Result</button>
+	</div>
+
+	<div class="selected-emojis">
+		<h3>Selected Emojis (drag to reorder, click to remove):</h3>
+		<div id="selectedEmojis"></div>
+	</div>
+
+	<div class="selectors-container">
+		<div class="selector-section">
+			<h3>Build Your Own</h3>
+			<div class="selector-content">
+				<div class="emoji-selector" id="emojiSelector"></div>
+			</div>
+		</div>
+		<div class="selector-section">
+			<h3>Try Valid Examples</h3>
+			<div class="selector-content">
+				<div class="example-grid" id="exampleGrid"></div>
+			</div>
+		</div>
+	</div>
+
+	<div style="margin-top: 30px;">
+		<h3>Or paste your own emojis:</h3>
+		<input type="text" id="customInput" placeholder="Paste emojis here">
+		<button onclick="addCustomEmoji()">Add to Selection</button>
+	</div>
+
+	<script>
+		const ZWJ = '\u200D';
+		let selectedEmojis = [];
+		let compiledResult = '';
+
+		const emojiData = [
+			{ emoji: '👨', name: 'man' },
+			{ emoji: '👩', name: 'woman' },
+			{ emoji: '👶', name: 'baby' },
+			{ emoji: '🧑', name: 'person' },
+			{ emoji: '👴', name: 'old-man' },
+			{ emoji: '👵', name: 'old-woman' },
+			{ emoji: '👦', name: 'boy' },
+			{ emoji: '👧', name: 'girl' },
+			{ emoji: '🏻', name: 'light' },
+			{ emoji: '🏼', name: 'med-light' },
+			{ emoji: '🏽', name: 'medium' },
+			{ emoji: '🏾', name: 'med-dark' },
+			{ emoji: '🏿', name: 'dark' },
+			{ emoji: '💼', name: 'briefcase' },
+			{ emoji: '⚕️', name: 'medical' },
+			{ emoji: '🔬', name: 'scientist' },
+			{ emoji: '💻', name: 'technologist' },
+			{ emoji: '🎨', name: 'artist' },
+			{ emoji: '🍳', name: 'cook' },
+			{ emoji: '🎓', name: 'student' },
+			{ emoji: '🔧', name: 'mechanic' },
+			{ emoji: '🚀', name: 'astronaut' },
+			{ emoji: '❤️', name: 'red-heart' },
+			{ emoji: '💚', name: 'green-heart' },
+			{ emoji: '💙', name: 'blue-heart' },
+			{ emoji: '💛', name: 'yellow-heart' },
+			{ emoji: '🧡', name: 'orange-heart' },
+			{ emoji: '💜', name: 'purple-heart' },
+			{ emoji: '🤍', name: 'white-heart' },
+			{ emoji: '🖤', name: 'black-heart' },
+			{ emoji: '🔥', name: 'fire' },
+			{ emoji: '✨', name: 'sparkles' },
+			{ emoji: '⭐', name: 'star' },
+			{ emoji: '🌟', name: 'glowing-star' },
+			{ emoji: '💫', name: 'dizzy' },
+			{ emoji: '⚡', name: 'zap' },
+			{ emoji: '💖', name: 'sparkling-heart' },
+			{ emoji: '💕', name: 'two-hearts' },
+			{ emoji: '👍', name: 'thumbs-up' },
+			{ emoji: '👎', name: 'thumbs-down' },
+			{ emoji: '✌️', name: 'victory' },
+			{ emoji: '🤞', name: 'crossed-fingers' },
+			{ emoji: '🤘', name: 'sign-of-horns' },
+			{ emoji: '👌', name: 'ok-hand' },
+			{ emoji: '🤝', name: 'handshake' },
+			{ emoji: '🙏', name: 'folded-hands' },
+			{ emoji: '🐻', name: 'bear' },
+			{ emoji: '🐱', name: 'cat' },
+			{ emoji: '🐶', name: 'dog' },
+			{ emoji: '🦁', name: 'lion' },
+			{ emoji: '🐸', name: 'frog' },
+			{ emoji: '🐷', name: 'pig' },
+			{ emoji: '🐵', name: 'monkey' },
+			{ emoji: '🐯', name: 'tiger' }
+		];
+
+		const validExamples = [
+			// Basic professions (widely supported)
+			{ emoji: '👨‍💻', components: ['👨', '💻'] },
+			{ emoji: '👩‍💻', components: ['👩', '💻'] },
+			{ emoji: '👨‍⚕️', components: ['👨', '⚕️'] },
+			{ emoji: '👩‍⚕️', components: ['👩', '⚕️'] },
+			{ emoji: '👨‍🍳', components: ['👨', '🍳'] },
+			{ emoji: '👩‍🍳', components: ['👩', '🍳'] },
+			{ emoji: '👨‍🎨', components: ['👨', '🎨'] },
+			{ emoji: '👩‍🎨', components: ['👩', '🎨'] },
+			{ emoji: '👨‍🔬', components: ['👨', '🔬'] },
+			{ emoji: '👩‍🔬', components: ['👩', '🔬'] },
+			{ emoji: '👨‍🎓', components: ['👨', '🎓'] },
+			{ emoji: '👩‍🎓', components: ['👩', '🎓'] },
+			{ emoji: '👨‍🔧', components: ['👨', '🔧'] },
+			{ emoji: '👩‍🔧', components: ['👩', '🔧'] },
+			{ emoji: '👨‍🚀', components: ['👨', '🚀'] },
+			{ emoji: '👩‍🚀', components: ['👩', '🚀'] },
+
+			// Professions with skin tones (distributed)
+			{ emoji: '👨🏻‍💻', components: ['👨', '🏻', '💻'] },
+			{ emoji: '👩🏼‍⚕️', components: ['👩', '🏼', '⚕️'] },
+			{ emoji: '👨🏽‍🍳', components: ['👨', '🏽', '🍳'] },
+			{ emoji: '👩🏾‍🎨', components: ['👩', '🏾', '🎨'] },
+			{ emoji: '👨🏿‍🔬', components: ['👨', '🏿', '🔬'] },
+			{ emoji: '👩🏻‍🎓', components: ['👩', '🏻', '🎓'] },
+			{ emoji: '👨🏼‍🔧', components: ['👨', '🏼', '🔧'] },
+			{ emoji: '👩🏽‍🚀', components: ['👩', '🏽', '🚀'] },
+
+			// Core families (well supported)
+			{ emoji: '👨‍👩‍👧', components: ['👨', '👩', '👧'] },
+			{ emoji: '👨‍👩‍👦', components: ['👨', '👩', '👦'] },
+			{ emoji: '👨‍👩‍👧‍👦', components: ['👨', '👩', '👧', '👦'] },
+			{ emoji: '👨‍👩‍👦‍👦', components: ['👨', '👩', '👦', '👦'] },
+			{ emoji: '👨‍👩‍👧‍👧', components: ['👨', '👩', '👧', '👧'] },
+			{ emoji: '👨‍👧', components: ['👨', '👧'] },
+			{ emoji: '👩‍👦', components: ['👩', '👦'] },
+			{ emoji: '👨‍👧‍👦', components: ['👨', '👧', '👦'] },
+			{ emoji: '👩‍👧‍👧', components: ['👩', '👧', '👧'] },
+			{ emoji: '👨‍👦‍👦', components: ['👨', '👦', '👦'] },
+
+			// Same-gender families
+			{ emoji: '👨‍👨‍👧', components: ['👨', '👨', '👧'] },
+			{ emoji: '👨‍👨‍👦', components: ['👨', '👨', '👦'] },
+			{ emoji: '👩‍👩‍👧', components: ['👩', '👩', '👧'] },
+			{ emoji: '👩‍👩‍👦', components: ['👩', '👩', '👦'] },
+			{ emoji: '👨‍👨‍👧‍👦', components: ['👨', '👨', '👧', '👦'] },
+			{ emoji: '👩‍👩‍👧‍👦', components: ['👩', '👩', '👧', '👦'] },
+
+			// Couples (standard)
+			{ emoji: '👨‍❤️‍👨', components: ['👨', '❤️', '👨'] },
+			{ emoji: '👩‍❤️‍👩', components: ['👩', '❤️', '👩'] },
+			{ emoji: '👨‍❤️‍👩', components: ['👨', '❤️', '👩'] },
+
+			// People with skin tones (distributed)
+			{ emoji: '👨🏻', components: ['👨', '🏻'] },
+			{ emoji: '👩🏼', components: ['👩', '🏼'] },
+			{ emoji: '🧑🏽', components: ['🧑', '🏽'] },
+			{ emoji: '👶🏾', components: ['👶', '🏾'] },
+			{ emoji: '👴🏿', components: ['👴', '🏿'] },
+			{ emoji: '👵🏻', components: ['👵', '🏻'] },
+			{ emoji: '👦🏼', components: ['👦', '🏼'] },
+			{ emoji: '👧🏽', components: ['👧', '🏽'] },
+
+			// Hand gestures with skin tones (distributed)
+			{ emoji: '👍🏻', components: ['👍', '🏻'] },
+			{ emoji: '👎🏼', components: ['👎', '🏼'] },
+			{ emoji: '✌️🏽', components: ['✌️', '🏽'] },
+			{ emoji: '🤞🏾', components: ['🤞', '🏾'] },
+			{ emoji: '👌🏿', components: ['👌', '🏿'] },
+			{ emoji: '🙏🏻', components: ['🙏', '🏻'] },
+			{ emoji: '🤝🏼', components: ['🤝', '🏼'] }
+		];
+
+		function initializeEmojiSelector() {
+			const selector = document.getElementById('emojiSelector');
+			emojiData.forEach(data => {
+				const button = document.createElement('div');
+				button.className = 'emoji-btn';
+				button.onclick = () => selectEmoji(data.emoji, button);
+
+				const emojiChar = document.createElement('div');
+				emojiChar.className = 'emoji-char';
+				emojiChar.textContent = data.emoji;
+
+				const emojiName = document.createElement('div');
+				emojiName.className = 'emoji-name';
+				emojiName.textContent = data.name;
+
+				button.appendChild(emojiChar);
+				button.appendChild(emojiName);
+				selector.appendChild(button);
+			});
+
+			initializeExamples();
+		}
+
+		function initializeExamples() {
+			const exampleGrid = document.getElementById('exampleGrid');
+			validExamples.forEach(example => {
+				const exampleItem = document.createElement('div');
+				exampleItem.className = 'example-item';
+				exampleItem.onclick = () => loadExample(example.components);
+
+				const emojiDisplay = document.createElement('div');
+				emojiDisplay.className = 'example-emoji';
+				emojiDisplay.textContent = example.emoji;
+
+				exampleItem.appendChild(emojiDisplay);
+				exampleGrid.appendChild(exampleItem);
+			});
+		}
+
+		function loadExample(components) {
+			selectedEmojis.push(...components);
+			updateSelectedDisplay();
+			autoCompile();
+			updateSuggestions();
+		}
+
+		function selectEmoji(emoji, button) {
+			selectedEmojis.push(emoji);
+			updateSelectedDisplay();
+			autoCompile();
+			updateSuggestions();
+		}
+
+		function getEmojiName(emoji) {
+			const emojiMap = {};
+			emojiData.forEach(data => {
+				emojiMap[data.emoji] = data.name;
+			});
+			return emojiMap[emoji] || 'unknown';
+		}
+
+		function updateSelectedDisplay() {
+			const container = document.getElementById('selectedEmojis');
+			container.innerHTML = '';
+
+			selectedEmojis.forEach((emoji, index) => {
+				const span = document.createElement('span');
+				span.className = 'selected-emoji';
+				span.draggable = true;
+				span.dataset.index = index;
+				span.title = 'Drag to reorder, click to remove';
+
+				const emojiChar = document.createElement('div');
+				emojiChar.className = 'selected-emoji-char';
+				emojiChar.textContent = emoji;
+
+				const emojiName = document.createElement('div');
+				emojiName.className = 'selected-emoji-name';
+				emojiName.textContent = getEmojiName(emoji);
+
+				span.appendChild(emojiChar);
+				span.appendChild(emojiName);
+
+				span.onclick = () => removeSelectedEmoji(index);
+
+				span.ondragstart = (e) => {
+					e.target.classList.add('dragging');
+					e.dataTransfer.setData('text/plain', index);
+					e.dataTransfer.effectAllowed = 'move';
+				};
+
+				span.ondragend = (e) => {
+					e.target.classList.remove('dragging');
+					container.querySelectorAll('.selected-emoji').forEach(el => {
+						el.classList.remove('drag-over-left', 'drag-over-right');
+					});
+				};
+
+				span.ondragover = (e) => {
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'move';
+
+					const rect = e.target.getBoundingClientRect();
+					const midPoint = rect.left + rect.width / 2;
+					const isLeftHalf = e.clientX < midPoint;
+
+					e.target.classList.remove('drag-over-left', 'drag-over-right');
+					e.target.classList.add(isLeftHalf ? 'drag-over-left' : 'drag-over-right');
+				};
+
+				span.ondragenter = (e) => {
+					e.preventDefault();
+				};
+
+				span.ondragleave = (e) => {
+					if (!e.target.contains(e.relatedTarget)) {
+						e.target.classList.remove('drag-over-left', 'drag-over-right');
+					}
+				};
+
+				span.ondrop = (e) => {
+					e.preventDefault();
+					e.target.classList.remove('drag-over-left', 'drag-over-right');
+
+					const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+					const toIndex = parseInt(e.target.dataset.index);
+
+					if (fromIndex !== toIndex) {
+						const rect = e.target.getBoundingClientRect();
+						const midPoint = rect.left + rect.width / 2;
+						const isLeftHalf = e.clientX < midPoint;
+
+						let insertIndex = toIndex;
+						if (!isLeftHalf) {
+							insertIndex = toIndex + 1;
+						}
+						if (fromIndex < insertIndex) {
+							insertIndex--;
+						}
+
+						reorderEmojis(fromIndex, insertIndex);
+					}
+				};
+
+				container.appendChild(span);
+			});
+		}
+
+		function reorderEmojis(fromIndex, toIndex) {
+			const [movedEmoji] = selectedEmojis.splice(fromIndex, 1);
+			selectedEmojis.splice(toIndex, 0, movedEmoji);
+			updateSelectedDisplay();
+			autoCompile();
+			updateSuggestions();
+		}
+
+		function removeSelectedEmoji(index) {
+			selectedEmojis.splice(index, 1);
+			updateSelectedDisplay();
+			autoCompile();
+			updateSuggestions();
+		}
+
+		function autoCompile() {
+			if (selectedEmojis.length === 0) {
+				clearResults();
+				return;
+			}
+
+			const skinTones = ['🏻', '🏼', '🏽', '🏾', '🏿'];
+			let compiledParts = [];
+			let sequenceDescription = [];
+
+			for (let i = 0; i < selectedEmojis.length; i++) {
+				const emoji = selectedEmojis[i];
+
+				if (skinTones.includes(emoji) && compiledParts.length > 0) {
+					compiledParts[compiledParts.length - 1] += emoji;
+					sequenceDescription[sequenceDescription.length - 1] += ' + ' + emoji;
+				} else {
+					compiledParts.push(emoji);
+					sequenceDescription.push(emoji);
+				}
+			}
+
+			compiledResult = compiledParts.join(ZWJ);
+			const resultContainer = document.getElementById('emojiResult');
+			const overlappedContainer = document.getElementById('overlappedResult');
+			const resultInfo = document.getElementById('resultInfo');
+
+			resultContainer.textContent = compiledResult;
+
+			overlappedContainer.innerHTML = '';
+			selectedEmojis.forEach((emoji, index) => {
+				const span = document.createElement('span');
+				span.className = 'overlapped-emoji';
+				span.textContent = emoji;
+				span.style.zIndex = selectedEmojis.length - index;
+				span.style.left = `${50 + (index * 15)}%`;
+				overlappedContainer.appendChild(span);
+			});
+
+			const allCodePoints = [];
+			for (let i = 0; i < compiledResult.length; i++) {
+				const codePoint = compiledResult.codePointAt(i);
+				allCodePoints.push('U+' + codePoint.toString(16).toUpperCase().padStart(4, '0'));
+				if (codePoint > 0xFFFF) i++;
+			}
+
+			resultInfo.innerHTML = `
+				<strong>Selected:</strong> ${selectedEmojis.join(', ')}<br>
+				<strong>Sequence:</strong> ${sequenceDescription.join(' + ZWJ + ')}<br>
+				<strong>Result:</strong> ${compiledResult}<br>
+				<strong>Length:</strong> ${compiledResult.length} chars (${[...compiledResult].length} graphemes)<br>
+				<strong>Code Points:</strong> ${allCodePoints.join(' ')}
+			`;
+		}
+
+		function clearResults() {
+			document.getElementById('emojiResult').textContent = '';
+			document.getElementById('overlappedResult').innerHTML = '';
+			document.getElementById('resultInfo').innerHTML = `
+				<strong>No emojis selected</strong><br>
+				Click emojis to start building your ZWJ sequence
+			`;
+			compiledResult = '';
+		}
+
+		function updateSuggestions() {
+			const skinTones = ['🏻', '🏼', '🏽', '🏾', '🏿'];
+			const people = ['👨', '👩', '🧑', '👶', '👴', '👵', '👦', '👧'];
+			const professions = ['💼', '⚕️', '🔬', '💻', '🎨', '🍳', '🎓', '🔧', '🚀'];
+			const hearts = ['❤️', '💚', '💙', '💛', '🧡', '💜', '🤍', '🖤'];
+			const hands = ['👍', '👎', '✌️', '🤞', '🤘', '👌', '🙏'];
+			const handshake = ['🤝'];
+
+			let suggested = new Set();
+
+			if (selectedEmojis.length === 0) {
+				document.querySelectorAll('.emoji-btn').forEach(btn => btn.classList.remove('suggested'));
+				return;
+			}
+
+			const lastEmoji = selectedEmojis[selectedEmojis.length - 1];
+			const hasAnyPerson = selectedEmojis.some(emoji => people.includes(emoji));
+			const hasAnySkinTone = selectedEmojis.some(emoji => skinTones.includes(emoji));
+
+			// Person selected - can add profession, skin tone, heart, or another person
+			if (people.includes(lastEmoji)) {
+				if (!hasAnySkinTone) {
+					skinTones.forEach(s => suggested.add(s));
+				}
+				professions.forEach(p => suggested.add(p));
+				hearts.forEach(h => suggested.add(h));
+				people.forEach(p => suggested.add(p));
+			}
+
+			// Profession selected - only suggest people for combinations like 👨‍💻
+			if (professions.includes(lastEmoji)) {
+				people.forEach(p => suggested.add(p));
+			}
+
+			// Heart selected - suggest people for couples like 👨‍❤️‍👩
+			if (hearts.includes(lastEmoji)) {
+				people.forEach(p => suggested.add(p));
+			}
+
+			// Skin tone selected - suggest people, professions, hands that can use skin tones
+			if (skinTones.includes(lastEmoji)) {
+				people.forEach(p => suggested.add(p));
+				professions.forEach(p => suggested.add(p));
+				hands.forEach(h => suggested.add(h));
+			}
+
+			// Hand gesture selected - only suggest skin tones
+			if (hands.includes(lastEmoji)) {
+				if (!hasAnySkinTone) {
+					skinTones.forEach(s => suggested.add(s));
+				}
+			}
+
+			// Handshake is special - suggest people for 🧑‍🤝‍🧑 sequences
+			if (handshake.includes(lastEmoji)) {
+				people.forEach(p => suggested.add(p));
+			}
+
+			// If we have a person but no skin tone, always suggest skin tones
+			if (hasAnyPerson && !hasAnySkinTone) {
+				skinTones.forEach(s => suggested.add(s));
+			}
+
+			document.querySelectorAll('.emoji-btn').forEach(btn => {
+				const emoji = btn.querySelector('.emoji-char').textContent;
+				if (suggested.has(emoji)) {
+					btn.classList.add('suggested');
+				} else {
+					btn.classList.remove('suggested');
+				}
+			});
+		}
+
+		function clearSelection() {
+			selectedEmojis = [];
+			updateSelectedDisplay();
+			clearResults();
+			updateSuggestions();
+		}
+
+		function copyToClipboard() {
+			if (!compiledResult) {
+				alert('Please select some emojis first!');
+				return;
+			}
+
+			navigator.clipboard.writeText(compiledResult).then(() => {
+				alert('ZWJ emoji copied to clipboard!');
+			}).catch(err => {
+				console.error('Failed to copy: ', err);
+				alert('Failed to copy to clipboard. Try selecting and copying manually.');
+			});
+		}
+
+		function addCustomEmoji() {
+			const input = document.getElementById('customInput');
+			const inputValue = input.value.trim();
+
+			if (!inputValue) return;
+
+			// Split by ZWJ to get individual components, then filter out empty strings
+			const ZWJ = '\u200D';
+			const components = inputValue.split(ZWJ).filter(component => component.length > 0);
+
+			// If no ZWJ found, try to split by individual characters
+			if (components.length === 1) {
+				const chars = [...inputValue];
+				components.length = 0;
+				components.push(...chars);
+			}
+
+			// Add each component to selected emojis
+			components.forEach(component => {
+				if (component.trim()) {
+					selectedEmojis.push(component);
+				}
+			});
+
+			updateSelectedDisplay();
+			autoCompile();
+			updateSuggestions();
+			input.value = '';
+		}
+
+		document.addEventListener('DOMContentLoaded', initializeEmojiSelector);
+	</script>
+</body>
+</html>
